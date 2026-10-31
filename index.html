@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CYBER ANIMATION</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #050510;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            font-family: 'Courier New', monospace;
+        }
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+        }
+        .cyber-signature {
+            position: absolute;
+            bottom: 20px;
+            right: 30px;
+            color: #00f7ff;
+            font-size: 14px;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            opacity: 0.6;
+            text-shadow: 0 0 10px #00f7ff, 0 0 20px #00f7ff;
+            pointer-events: none;
+            z-index: 10;
+            animation: flicker 3s infinite alternate;
+        }
+        @keyframes flicker {
+            0% { opacity: 0.3; text-shadow: 0 0 5px #00f7ff; }
+            100% { opacity: 0.9; text-shadow: 0 0 15px #00f7ff, 0 0 30px #0077ff; }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="cyberCanvas"></canvas>
+    <div class="cyber-signature">⚡ CYBER ⚡</div>
+
+    <script>
+        (function() {
+            const canvas = document.getElementById('cyberCanvas');
+            const ctx = canvas.getContext('2d');
+            let width, height;
+
+            // Particle array
+            let particles = [];
+            const PARTICLE_COUNT = 180;
+
+            // Central pulse variables
+            let time = 0;
+
+            // Resize handler
+            function resize() {
+                width = window.innerWidth;
+                height = window.innerHeight;
+                canvas.width = width;
+                canvas.height = height;
+                // Reinitialize particles on resize to fill new dimensions
+                initParticles();
+            }
+
+            // Particle class
+            class Particle {
+                constructor() {
+                    this.reset();
+                }
+
+                reset() {
+                    // Random position within canvas, but avoid dead center too much? no, fine.
+                    this.x = Math.random() * width;
+                    this.y = Math.random() * height;
+
+                    // Random speed - very small, but cyberpunk feel
+                    this.vx = (Math.random() - 0.5) * 0.8;
+                    this.vy = (Math.random() - 0.5) * 0.8;
+
+                    // Size between 1 and 2.5
+                    this.radius = Math.random() * 1.8 + 0.8;
+
+                    // Color palette: neon cyan, electric blue, magenta, purple
+                    const colors = [
+                        '#00f7ff', // cyan
+                        '#00aaff', // light blue
+                        '#ff00cc', // magenta
+                        '#aa00ff', // purple
+                        '#00ffcc', // teal
+                        '#ff44aa'  // pink
+                    ];
+                    this.color = colors[Math.floor(Math.random() * colors.length)];
+
+                    // Glow / opacity variation
+                    this.alpha = Math.random() * 0.7 + 0.3;
+
+                    // For pulsing effect
+                    this.pulsePhase = Math.random() * Math.PI * 2;
+                }
+
+                update() {
+                    // Move particle
+                    this.x += this.vx;
+                    this.y += this.vy;
+
+                    // Wrap around edges with a margin
+                    const margin = 20;
+                    if (this.x < -margin) this.x = width + margin;
+                    if (this.x > width + margin) this.x = -margin;
+                    if (this.y < -margin) this.y = height + margin;
+                    if (this.y > height + margin) this.y = -margin;
+
+                    // Slight drift / random acceleration for organic feel
+                    this.vx += (Math.random() - 0.5) * 0.02;
+                    this.vy += (Math.random() - 0.5) * 0.02;
+
+                    // Limit speed
+                    const maxSpeed = 1.5;
+                    const speed = Math.hypot(this.vx, this.vy);
+                    if (speed > maxSpeed) {
+                        this.vx = (this.vx / speed) * maxSpeed;
+                        this.vy = (this.vy / speed) * maxSpeed;
+                    }
+
+                    // Occasionally slow down (friction-like)
+                    this.vx *= 0.999;
+                    this.vy *= 0.999;
+                }
+
+                draw(ctx) {
+                    // Pulsing glow based on time
+                    const pulse = Math.sin(time * 0.005 + this.pulsePhase) * 0.3 + 0.7;
+                    const currentAlpha = this.alpha * pulse;
+
+                    // Draw glowing circle
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = this.color;
+                    ctx.shadowColor = this.color;
+                    ctx.shadowBlur = 12;
+                    ctx.globalAlpha = currentAlpha;
+                    ctx.fill();
+
+                    // Extra small inner bright spot
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius * 0.4, 0, Math.PI * 2);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.shadowBlur = 8;
+                    ctx.globalAlpha = currentAlpha * 0.8;
+                    ctx.fill();
+
+                    // Reset shadow and alpha to avoid affecting other draws
+                    ctx.shadowBlur = 0;
+                    ctx.globalAlpha = 1.0;
+                }
+            }
+
+            // Initialize particles
+            function initParticles() {
+                particles = [];
+                for (let i = 0; i < PARTICLE_COUNT; i++) {
+                    particles.push(new Particle());
+                }
+            }
+
+            // Draw static grid (cyberpunk style)
+            function drawGrid() {
+                const gridSize = 45;
+                const offsetX = (time * 0.2) % gridSize;
+                const offsetY = (time * 0.1) % gridSize;
+
+                ctx.strokeStyle = '#00f7ff';
+                ctx.lineWidth = 0.5;
+                ctx.globalAlpha = 0.12;
+
+                // Vertical lines with slight parallax movement
+                for (let x = -gridSize + offsetX; x < width + gridSize; x += gridSize) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, height);
+                    ctx.stroke();
+                }
+
+                // Horizontal lines
+                for (let y = -gridSize + offsetY; y < height + gridSize; y += gridSize) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(width, y);
+                    ctx.stroke();
+                }
+
+                // Add extra glow lines every 4th line
+                ctx.strokeStyle = '#ff00cc';
+                ctx.lineWidth = 0.8;
+                ctx.globalAlpha = 0.08;
+                for (let x = -gridSize + offsetX; x < width + gridSize; x += gridSize * 4) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, height);
+                    ctx.stroke();
+                }
+                for (let y = -gridSize + offsetY; y < height + gridSize; y += gridSize * 4) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(width, y);
+                    ctx.stroke();
+                }
+
+                ctx.globalAlpha = 1.0;
+            }
+
+            // Draw central glowing core with cyber rings
+            function drawCore() {
+                const centerX = width / 2;
+                const centerY = height / 2;
+
+                // Pulsating radius
+                const baseRadius = Math.min(width, height) * 0.12;
+                const pulseRadius = baseRadius + Math.sin(time * 0.02) * 8;
+
+                // Outer glow ring (large, faint)
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, pulseRadius * 1.8, 0, Math.PI * 2);
+                ctx.fillStyle = '#00aaff';
+                ctx.shadowBlur = 60;
+                ctx.shadowColor = '#00aaff';
+                ctx.globalAlpha = 0.08;
+                ctx.fill();
+
+                // Ring 1
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, pulseRadius * 1.2, 0, Math.PI * 2);
+                ctx.strokeStyle = '#00f7ff';
+                ctx.lineWidth = 2.5;
+                ctx.shadowBlur = 30;
+                ctx.shadowColor = '#00f7ff';
+                ctx.globalAlpha = 0.5;
+                ctx.stroke();
+
+                // Ring 2 (rotated dashed)
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, pulseRadius * 1.5, 0, Math.PI * 2);
+                ctx.strokeStyle = '#ff00cc';
+                ctx.lineWidth = 1.8;
+                ctx.shadowBlur = 25;
+                ctx.shadowColor = '#ff00cc';
+                ctx.globalAlpha = 0.4;
+                ctx.setLineDash([12, 20]);
+                ctx.stroke();
+                ctx.setLineDash([]); // reset
+
+                // Inner core
+                const gradient = ctx.createRadialGradient(centerX, centerY, 2, centerX, centerY, pulseRadius * 0.9);
+                gradient.addColorStop(0, '#ffffff');
+                gradient.addColorStop(0.4, '#00f7ff');
+                gradient.addColorStop(0.8, '#0066ff');
+                gradient.addColorStop(1, '#000033');
+
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, pulseRadius * 0.7, 0, Math.PI * 2);
+                ctx.fillStyle = gradient;
+                ctx.shadowBlur = 50;
+                ctx.shadowColor = '#00f7ff';
+                ctx.globalAlpha = 0.9;
+                ctx.fill();
+
+                // Central bright spot
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, pulseRadius * 0.2, 0, Math.PI * 2);
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowBlur = 70;
+                ctx.shadowColor = '#ffffff';
+                ctx.globalAlpha = 1.0;
+                ctx.fill();
+
+                // Reset
+                ctx.shadowBlur = 0;
+                ctx.globalAlpha = 1.0;
+            }
+
+            // Draw connections between nearby particles
+            function drawConnections() {
+                const maxDist = 100; // max distance for connection
+                const maxDistSq = maxDist * maxDist;
+
+                // Only consider a subset for performance? 180 particles -> 16110 pairs, fine.
+                ctx.lineWidth = 0.6;
+                ctx.shadowBlur = 8;
+
+                for (let i = 0; i < particles.length; i++) {
+                    const p1 = particles[i];
+                    for (let j = i + 1; j < particles.length; j++) {
+                        const p2 = particles[j];
+                        const dx = p1.x - p2.x;
+                        const dy = p1.y - p2.y;
+                        const distSq = dx * dx + dy * dy;
+
+                        if (distSq < maxDistSq) {
+                            const dist = Math.sqrt(distSq);
+                            const alpha = (1 - dist / maxDist) * 0.35;
+
+                            // Color based on average of particle colors? simplified: cyan/magenta mix
+                            // Use p1 color for simplicity, but vary opacity
+                            ctx.strokeStyle = p1.color;
+                            ctx.shadowColor = p1.color;
+                            ctx.globalAlpha = alpha * 0.7;
+
+                            ctx.beginPath();
+                            ctx.moveTo(p1.x, p1.y);
+                            ctx.lineTo(p2.x, p2.y);
+                            ctx.stroke();
+                        }
+                    }
+                }
+
+                ctx.shadowBlur = 0;
+                ctx.globalAlpha = 1.0;
+            }
+
+            // Animation loop
+            function animate() {
+                // Update time
+                time += 1;
+
+                // Clear with semi-transparent black to create trailing effect, but we want crisp clear for glow
+                // Use full clear for sharpness, but add a subtle dark overlay for atmosphere? 
+                // Since we draw many elements with glow, full clear is better.
+                ctx.clearRect(0, 0, width, height);
+
+                // Background fill (deep space)
+                ctx.fillStyle = '#050510';
+                ctx.globalAlpha = 0.4; // slight transparency to allow grid to glow? actually we want background solid.
+                // Better: solid fill for consistent background
+                ctx.globalAlpha = 1.0;
+                ctx.fillStyle = '#050510';
+                ctx.fillRect(0, 0, width, height);
+
+                // Draw background grid
+                drawGrid();
+
+                // Update and draw particles
+                particles.forEach(p => p.update());
+
+                // Draw connections first (behind particles)
+                drawConnections();
+
+                // Draw particles (with glow)
+                particles.forEach(p => p.draw(ctx));
+
+                // Draw the central cyber core
+                drawCore();
+
+                // Optional: scanline effect / noise? not needed.
+
+                requestAnimationFrame(animate);
+            }
+
+            // Start everything
+            window.addEventListener('resize', resize);
+            resize(); // sets width, height, and calls initParticles
+            animate();
+
+            // Also handle initial load if resize called before particles? it's fine.
+            // Ensure particles are initialized if resize didn't trigger (it does call initParticles)
+        })();
+    </script>
+</body>
+</html>
